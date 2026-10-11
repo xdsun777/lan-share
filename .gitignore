@@ -1,3 +1,7 @@
 __pycache__
 shots
 uploads
+*.mp4
+*.mp3
+*.bin
+*.png
