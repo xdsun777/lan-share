@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f5f6f8">
+<title>局域网文件中转站</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232563eb'/%3E%3Cpath d='M10 19l6 5 6-5M16 24V8' stroke='%23fff' stroke-width='2.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<!-- ============ 访问密码锁 ============ -->
+<div id="lockScreen" class="lock hidden">
+  <form id="lockForm" class="lockCard">
+    <div class="lockIcon">🔒</div>
+    <h2>需要访问密码</h2>
+    <p class="muted">管理员为本中转站设置了访问密码</p>
+    <input id="lockInput" type="password" placeholder="请输入访问密码" autocomplete="current-password">
+    <button class="btn primary block" type="submit">进入</button>
+    <p id="lockError" class="err hidden"></p>
+  </form>
+</div>
+
+<!-- ============ 顶栏 ============ -->
+<header class="topbar">
+  <div class="brand">
+    <span class="logo" aria-hidden="true">
+      <svg viewBox="0 0 32 32" width="22" height="22"><rect width="32" height="32" rx="7" fill="#2563eb"/><path d="M10 19l6 5 6-5M16 24V8" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </span>
+    <div class="brandText">
+      <h1>局域网文件中转站</h1>
+      <p id="serverLine" class="muted">正在连接服务器…</p>
+    </div>
+  </div>
+  <div class="topActions">
+    <button id="btnAddresses" class="btn ghost" type="button">访问地址</button>
+    <button id="btnRefresh" class="btn ghost" type="button">刷新</button>
+    <button id="btnPick" class="btn primary" type="button">上传文件</button>
+  </div>
+</header>
+
+<main>
+  <!-- ============ 访问地址面板 ============ -->
+  <section id="addressPanel" class="panel hidden">
+    <div class="panelHead"><h3>可用访问地址</h3><button class="btn ghost sm" data-close="addressPanel" type="button">收起</button></div>
+    <p id="addressHint" class="muted small">把任意一条地址发给 A / B 端（手机可直接扫码或手输），即可使用同一个文件池。</p>
+    <ul id="addressList" class="addressList"></ul>
+  </section>
+
+  <!-- ============ 拖拽上传区 ============ -->
+  <section id="dropzone" class="dropzone" tabindex="0">
+    <div class="dzInner">
+      <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M4 16v2.5A2.5 2.5 0 006.5 21h11a2.5 2.5 0 002.5-2.5V16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="dzTitle">拖拽文件到此处上传，或 <span class="link">点击选择</span></div>
+      <div class="dzHint muted small">支持多文件同时上传 · 超大文件自动分块并支持断点续传 · 局域网内不限速</div>
+    </div>
+  </section>
+
+  <!-- ============ 上传队列 ============ -->
+  <section id="queuePanel" class="panel hidden">
+    <div class="panelHead">
+      <h3>上传队列 <span id="queueSummary" class="muted small"></span></h3>
+      <div class="headActions">
+        <button id="btnClearDone" class="btn ghost sm" type="button">清除已完成</button>
+        <button id="btnCancelAll" class="btn ghost sm danger" type="button">全部取消</button>
+      </div>
+    </div>
+    <div id="queueList" class="queueList"></div>
+  </section>
+
+  <!-- ============ 文件列表 ============ -->
+  <section class="panel">
+    <div class="panelHead wrap">
+      <h3>共享文件池 <span id="poolSummary" class="muted small"></span></h3>
+      <div class="headActions">
+        <div id="zipBar" class="zipBar hidden">
+          <button id="btnSelectAll" class="btn ghost sm" type="button">全选</button>
+          <button id="btnZip" class="btn primary sm" type="button" disabled>打包下载</button>
+        </div>
+        <input id="searchInput" class="input" type="search" placeholder="搜索文件名…" autocomplete="off">
+        <select id="sortSelect" class="input select">
+          <option value="time-desc">最新上传优先</option>
+          <option value="time-asc">最早上传优先</option>
+          <option value="name-asc">文件名 A → Z</option>
+          <option value="size-desc">体积从大到小</option>
+          <option value="size-asc">体积从小到大</option>
+        </select>
+      </div>
+    </div>
+    <div id="fileList" class="fileList" role="list"></div>
+    <div id="emptyState" class="empty hidden">
+      <p class="emptyTitle">这里还没有文件</p>
+      <p class="muted small">A 端上传后，B 端刷新即可看到并直接下载或在线播放。</p>
+    </div>
+    <div id="loadingState" class="empty"><p class="muted small">正在读取文件列表…</p></div>
+  </section>
+</main>
+
+<footer class="footer">
+  <span id="footerInfo" class="muted small"></span>
+</footer>
+
+<!-- ============ 拖拽浮层 ============ -->
+<div id="dropOverlay" class="dropOverlay hidden">
+  <div class="dropCard">松开鼠标即可上传到中转站</div>
+</div>
+
+<!-- ============ 预览弹层 ============ -->
+<div id="previewModal" class="modal hidden" data-close="previewModal">
+  <div class="modalCard" role="dialog" aria-modal="true">
+    <div class="modalHead">
+      <div class="modalTitle"><span id="previewName" class="ellipsis"></span><span id="previewMeta" class="muted small"></span></div>
+      <div class="headActions">
+        <a id="previewOpen" class="btn ghost sm" target="_blank" rel="noopener">新窗口打开</a>
+        <a id="previewDownload" class="btn ghost sm" download>下载</a>
+        <button class="btn ghost sm" data-close="previewModal" type="button">关闭</button>
+      </div>
+    </div>
+    <div id="previewBody" class="modalBody"></div>
+  </div>
+</div>
+
+<!-- ============ 扫码弹层 ============ -->
+<div id="qrModal" class="modal hidden" data-close="qrModal">
+  <div class="modalCard qrCard" role="dialog" aria-modal="true">
+    <div class="modalHead">
+      <div class="modalTitle"><span>手机扫码加入</span></div>
+      <div class="headActions">
+        <button class="btn ghost sm" data-close="qrModal" type="button">关闭</button>
+      </div>
+    </div>
+    <div class="qrBody">
+      <div id="qrBox" class="qrFrame"></div>
+      <code id="qrUrl" class="qrUrl"></code>
+      <p class="qrTip muted small">用手机相机或微信扫一扫即可打开同一个文件池（手机需与本机在同一 Wi-Fi）。</p>
+    </div>
+  </div>
+</div>
+
+<div id="toasts" class="toasts"></div>
+<input id="fileInput" type="file" multiple hidden>
+<script src="/vendor/qrcode.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
